@@ -110,7 +110,6 @@ def pheumaniaDisease(message, image):
     with torch.no_grad():
         pneumaniaModel.eval()
         logit = pneumaniaModel(image[None, :])[0]
-    print(logit)
     pred = numpy.argmax(logit.detach().numpy()).item()
     bot.send_message(message.chat.id, 'Результаты классификации:')
     bot.send_message(message.chat.id,
