@@ -128,7 +128,7 @@ def pheumaniaDisease(message, image):
 def multiDisease(message, image):
     with torch.no_grad():
         chestXrayModel.eval()
-        pred = (nn.Sigmoid()(chestXrayModel(image[None, :])[0])) > 0.5
+        pred = (nn.Sigmoid()(chestXrayModel(image[None, :])[0])) > 0.14
     bot.send_message(message.chat.id, 'Результаты классификации:')
     if len(diseases[pred]) == 0:
         bot.send_message(message.chat.id, 'Модель не выявила никаких заболеваний')
@@ -173,7 +173,6 @@ def button_hander(message, image):
 def interpritate(message, model_type, image, target):
     bot.send_message(message.chat.id, 'Интерпретация модели')
     interp = intepretationLRP(chestXrayModel if model_type else pneumaniaModel, image[None, :], target)
-    # interp = intepretationGradCam(chestXrayModel if model_type else pneumaniaModel, model_type, image[None, :], target)  GradCam interpritation
     origin_image = np.transpose(image.detach().numpy().squeeze(), (1, 2, 0))
     attr_img, _ = captum.attr.visualization.visualize_image_attr(interp, method='blended_heat_map', cmap='Reds',
                                                                  original_image=origin_image)

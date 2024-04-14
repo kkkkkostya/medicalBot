@@ -13,5 +13,5 @@ def intepretationGradCam(net, net_type, image, target):
 def intepretationLRP(net, image, target):
     lrp = LRP(net)
     attribution = lrp.attribute(image, target=target)
-    image = np.transpose(attribution.detach().numpy().squeeze(), (1, 2, 0))
+    image = np.transpose(attribution.squeeze().cpu().detach().numpy(), (1, 2, 0))
     return image
