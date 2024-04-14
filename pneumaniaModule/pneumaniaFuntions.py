@@ -29,7 +29,7 @@ class PneumoniaClassificationNet(nn.Module):
             nn.Conv2d(in_channels=256, out_channels=256, stride=2, kernel_size=3),  # 256 x 7 x 7
             nn.ReLU(),
             nn.MaxPool2d(2),  # 256 x 3 x 3
-            nn.Dropout(0.2),
+            nn.Dropout(0.2)
         )
 
         self.head = nn.Sequential(
@@ -39,11 +39,10 @@ class PneumoniaClassificationNet(nn.Module):
         )
 
     def forward(self, x):
-        x = self.encoder(x)
-        fl = nn.Flatten(start_dim=1)
-        x = fl(x)
-        x = self.head(x)
-        return x
+        out = self.encoder(x)
+        out = out.view(x.size(0), -1)
+        out = self.head(out)
+        return out
 
     def predict_proba(self, x):
         result = self.forward(x)

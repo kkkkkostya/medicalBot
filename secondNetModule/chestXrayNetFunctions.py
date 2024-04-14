@@ -39,19 +39,18 @@ class ChestXrayNet(nn.Module):
             nn.Conv2d(in_channels=512, out_channels=512, stride=2, kernel_size=2),  # 512 4 x 4
             nn.ReLU(),
             nn.MaxPool2d(2),  # 512 x 2 x 2
-            nn.Dropout(0.2),
-
-            nn.Flatten()  # 2048
+            nn.Dropout(0.2)
         )
 
         self.head = nn.Sequential(
             nn.Linear(in_features=2048, out_features=256),
             nn.ReLU(),
-            nn.Linear(in_features=256, out_features=14),
+            nn.Linear(in_features=256, out_features=14)
         )
 
     def forward(self, x):
         out = self.encoder(x)
+        out = out.view(x.size(0), -1)
         out = self.head(out)
         return out
 
@@ -63,7 +62,6 @@ class ChestXrayNet(nn.Module):
 def chestXrayNet(pretrained=False):
     model = ChestXrayNet()
     if pretrained:
-        params = torch.load('secondNetModule/chest_X14_weights.pt',map_location=torch.device('cpu'))
+        params = torch.load('secondNetModule/chest_X14_weights.pt', map_location=torch.device('cpu'))
         model.load_state_dict(params)
     return model
-

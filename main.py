@@ -6,15 +6,14 @@ from telebot import types
 from torch import nn
 from torchvision.transforms import v2
 from pneumaniaModule.pneumaniaFuntions import pneumoniaNet
+from secondNetModule.chestXrayNetFunctions import chestXrayNet
 from io import BytesIO
 import torchvision.transforms.v2 as T
-from interpretation_methods.interpretation_methods import intepretationGradCam
+from interpretation_methods.interpretation_methods import intepretationLRP
+from statisticalModule.stat_methods import empirical_p_values
 import numpy as np
 import captum
 import matplotlib
-
-from secondNetModule.chestXrayNetFunctions import chestXrayNet
-from statisticalModule.stat_methods import empirical_p_values
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -29,6 +28,8 @@ second_disease = 'Диагностика других заболеваний'
 pneumaniaModel = pneumoniaNet(pretrained=True)
 chestXrayModel = chestXrayNet(pretrained=True)
 
+chat_states = {}
+
 
 @bot.message_handler(
     content_types=["text", "audio", "document", "photo", "sticker", "video", "video_note", "voice", "location",
@@ -39,11 +40,19 @@ chestXrayModel = chestXrayNet(pretrained=True)
 def check_first_message(message):
     chat_id = message.chat.id
 
+    if chat_id in chat_states:
+        # Если состояние "ожидание ответа", то игнорируем сообщение
+        if chat_states[chat_id] == "wait_for_answer":
+            return
+
+    chat_states[chat_id] = "wait_for_answer"
+
     if message.content_type == 'text' and message.text == "/start":
         start_function(message)
     else:
         bot.send_message(chat_id, "Чтобы начать работу с ботом, выберите в меню start")
         bot.register_next_step_handler(message, check_first_message)
+        chat_states[chat_id] = None
 
 
 @bot.message_handler(commands=['start'])
@@ -98,25 +107,29 @@ def click_disease_button(message, disease_name):
 @bot.message_handler(
     content_types=['photo'])
 def pheumaniaDisease(message, image):
-    logit = pneumaniaModel(image[None, :])[0]
+    with torch.no_grad():
+        pneumaniaModel.eval()
+        logit = pneumaniaModel(image[None, :])[0]
+    print(logit)
     pred = numpy.argmax(logit.detach().numpy()).item()
     bot.send_message(message.chat.id, 'Результаты классификации:')
     bot.send_message(message.chat.id,
                      'Вероятнее всего на фото {p} пневмония'.format(p='присутствует' if pred else 'отсутствует'))
-    # if pred == 1:         will be soon
-    #     bot.send_message(message.chat.id,
-    #                      'Оценка вероятности ошибки предсказания: {p} '.format(
-    #                          p=empirical_p_values(np.array([logit[1].detach().numpy()]))[0]))
+    if pred == 0:
+        bot.send_message(message.chat.id,
+                         'Оценка вероятности ошибки предсказания: {p} '.format(
+                             p=empirical_p_values(np.array([logit[1].detach().numpy()]))[0]))
 
     interpritate(message, 0, image, pred)
-    bot.register_next_step_handler(message, lambda m: click_disease_button(m, first_disease))
     bot.register_next_step_handler(message, lambda m: click_disease_button(m, first_disease))
 
 
 @bot.message_handler(
     content_types=['photo'])
 def multiDisease(message, image):
-    pred = (nn.Sigmoid()(chestXrayModel(image[None, :])[0])) > 0.5
+    with torch.no_grad():
+        chestXrayModel.eval()
+        pred = (nn.Sigmoid()(chestXrayModel(image[None, :])[0])) > 0.5
     bot.send_message(message.chat.id, 'Результаты классификации:')
     if len(diseases[pred]) == 0:
         bot.send_message(message.chat.id, 'Модель не выявила никаких заболеваний')
@@ -160,7 +173,8 @@ def button_hander(message, image):
 
 def interpritate(message, model_type, image, target):
     bot.send_message(message.chat.id, 'Интерпретация модели')
-    interp = intepretationGradCam(chestXrayModel if model_type else pneumaniaModel, model_type, image[None, :], target)
+    interp = intepretationLRP(chestXrayModel if model_type else pneumaniaModel, image[None, :], target)
+    # interp = intepretationGradCam(chestXrayModel if model_type else pneumaniaModel, model_type, image[None, :], target)  GradCam interpritation
     origin_image = np.transpose(image.detach().numpy().squeeze(), (1, 2, 0))
     attr_img, _ = captum.attr.visualization.visualize_image_attr(interp, method='blended_heat_map', cmap='Reds',
                                                                  original_image=origin_image)
@@ -174,12 +188,12 @@ def interpritate(message, model_type, image, target):
 
 
 def get_tensor_from_bytes(b, second_net=False):
-    '''
+    """
     Gets the PIL.Image object from the bytes of photo
-    :param grayScale:
+    :param second_net:
     :param b: Bytes of the photo
     :type b: bytes
-    '''
+    """
     if second_net:
         test_transform = T.Compose([
             T.Resize((1024, 1024)),

@@ -2,20 +2,24 @@ import numpy as np
 import torch
 from bisect import bisect
 
+pos_rate = 0.2403846153846154
+
 
 def empirical_p_values(query):
     distribution = np.load('statisticalModule/pos_train_dist.npy')
+    distribution = np.sort(distribution)
     dist_len = len(distribution)
     query_len = len(query)
     p_values = np.zeros([query_len, ])
 
+    print(bisect(distribution, query[0]))
     for i, score in enumerate(query):
         p_values[i] = (bisect(distribution, score)) / dist_len
     return np.sort(p_values)
 
 
-def calculate_qvalues_from_pvalues(distribution, query, pi_0=1 - 0.2403846153846154):
-    p_values = empirical_p_values(np.sort(distribution), query)
+def calculate_qvalues_from_pvalues(query, pi_0=1 - pos_rate):
+    p_values = empirical_p_values(query)
     q_values = p_values * len(p_values) * pi_0
     q_values = q_values / np.arange(1, len(p_values) + 1)
     for i in range(len(p_values) - 1, 0, -1):
