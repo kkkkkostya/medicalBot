@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 diseases = np.array(
     ['Atelectasis', 'Cardiomegaly', 'Effusion', 'Infiltration', 'Mass', 'Nodule', 'Pneumonia', 'Pneumothorax',
      'Consolidation', 'Edema', 'Emphysema', 'Fibrosis', 'Pleural_Thickening', 'Hernia'])
-bot = telebot.TeleBot('7048035782:AAFHedcWRB9fHSiXWL9xYHaTxe1-ZVjq5D8')
+bot = telebot.TeleBot('')
 first_disease = 'Пневмония'
 second_disease = 'Диагностика других заболеваний'
 
