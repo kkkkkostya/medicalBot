@@ -12,7 +12,6 @@ def empirical_p_values(query):
     query_len = len(query)
     p_values = np.zeros([query_len, ])
 
-    print(bisect(distribution, query[0]))
     for i, score in enumerate(query):
         p_values[i] = (bisect(distribution, score)) / dist_len
     return np.sort(p_values)
